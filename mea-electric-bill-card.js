@@ -1,7 +1,6 @@
-/* MEA Electric Bill Card (Type 1.2 Progressive)
- * Version: 1.1.1
+/* MEA Electric Bill Card (Type 1.2 Progressive with Solar Deduct)
+ * Version: 1.2.0
  * Custom Lovelace Card for MEA (Metropolitan Electricity Authority, Thailand)
- * Residential Type 1.2 (>150 units/month, Non-TOU Progressive Rate)
  */
 
 const DEFAULT_RATES = {
@@ -138,11 +137,6 @@ function totalUsage(points) {
   return last - first;
 }
 
-function toArray(v) {
-  if (!v) return [];
-  return Array.isArray(v) ? v.filter(Boolean) : [v];
-}
-
 class MeaElectricBillCard extends HTMLElement {
   static getConfigElement() {
     return document.createElement("mea-electric-bill-card-editor");
@@ -157,15 +151,15 @@ class MeaElectricBillCard extends HTMLElement {
       service_charge: DEFAULT_RATES.serviceCharge,
       vat: VAT_DEFAULT,
       default_period: "cycle",
-      entities: {},
+      entity_total: "",
+      entity_solar: "",
     };
   }
 
   setConfig(config) {
     if (!config) throw new Error("Invalid configuration");
-    const entities = config.entities || {};
-    if (!toArray(entities.total).length) {
-      throw new Error("entities.total (at least one cumulative energy sensor) is required");
+    if (!config.entity_total) {
+      throw new Error("entity_total (Sensor ใช้ไฟรวม) is required");
     }
     const cutoffDay = Number(config.cutoff_day || 1);
     if (cutoffDay < 1 || cutoffDay > 31) {
@@ -173,17 +167,15 @@ class MeaElectricBillCard extends HTMLElement {
     }
     const defaultPeriod = PERIODS[config.default_period] ? config.default_period : "cycle";
 
-    const ftBaht = config.ft_baht != null ? Number(config.ft_baht) : FT_DEFAULT;
-    const serviceCharge = config.service_charge != null ? Number(config.service_charge) : DEFAULT_RATES.serviceCharge;
-
     this._config = {
       name: config.name || "MEA Electric Bill",
       cutoff_day: cutoffDay,
-      ft_baht: ftBaht,
-      service_charge: serviceCharge,
+      ft_baht: config.ft_baht != null ? Number(config.ft_baht) : FT_DEFAULT,
+      service_charge: config.service_charge != null ? Number(config.service_charge) : DEFAULT_RATES.serviceCharge,
       ft_entity: config.ft_entity || "",
       vat: Number(config.vat ?? VAT_DEFAULT),
-      entities,
+      entity_total: config.entity_total || "",
+      entity_solar: config.entity_solar || "",
       rates: config.rates || DEFAULT_RATES,
     };
     if (!this._period) this._period = defaultPeriod;
@@ -219,13 +211,24 @@ class MeaElectricBillCard extends HTMLElement {
     const now = new Date();
     const start = getPeriodStart(this._period || "cycle", cfg.cutoff_day, now);
 
-    const totalEntities = toArray(cfg.entities.total);
-    const segmentsPerEntity = await Promise.all(
-      totalEntities.map((id) => fetchUsageSegments(this._hass, id, start, now))
-    );
-    
+    // ดึงข้อมูลหน่วยไฟรวม
+    const totalSegs = await fetchUsageSegments(this._hass, cfg.entity_total, start, now);
+    const totalUnits = totalUsageMulti(totalSegs);
+
+    // ดึงข้อมูลหน่วย Solar (ถ้ามี)
+    let solarUnits = 0;
+    if (cfg.entity_solar) {
+      const solarSegs = await fetchUsageSegments(this._hass, cfg.entity_solar, start, now);
+      solarUnits = totalUsageMulti(solarSegs);
+    }
+
+    // คำนวณหน่วยคงเหลือ (ห้ามติดลบ)
+    const netUnits = Math.max(0, totalUnits - solarUnits);
+
     this._usage = {
-      units: segmentsPerEntity.reduce((sum, segs) => sum + totalUsageMulti(segs), 0),
+      totalUnits,
+      solarUnits,
+      netUnits,
     };
 
     this._cycleStart = start;
@@ -250,7 +253,7 @@ class MeaElectricBillCard extends HTMLElement {
     const ft = this._resolveFt();
     const rateSet = cfg.rates.tiers ? cfg.rates : DEFAULT_RATES;
     
-    const units = this._usage && this._usage.units != null ? this._usage.units : 0;
+    const units = this._usage ? this._usage.netUnits : 0;
     const energyCharge = tieredEnergyCharge(units, rateSet.tiers);
     const serviceCharge = cfg.service_charge != null ? cfg.service_charge : DEFAULT_RATES.serviceCharge;
     
@@ -293,6 +296,10 @@ class MeaElectricBillCard extends HTMLElement {
       )
       .join("");
 
+    const totalU = this._usage ? this._usage.totalUnits.toFixed(2) : "0.00";
+    const solarU = this._usage ? this._usage.solarUnits.toFixed(2) : "0.00";
+    const netU = this._usage ? this._usage.netUnits.toFixed(2) : "0.00";
+
     this.shadowRoot.innerHTML = `
       <style>
         ha-card { padding: 16px; }
@@ -324,6 +331,25 @@ class MeaElectricBillCard extends HTMLElement {
           background: var(--primary-color);
           color: var(--text-primary-color, #fff);
         }
+        .summary-box {
+          background: var(--secondary-background-color, #f7f7f7);
+          border-radius: 8px;
+          padding: 10px;
+          margin-bottom: 12px;
+          font-size: 0.9em;
+        }
+        .summary-row {
+          display: flex;
+          justify-content: space-between;
+          padding: 2px 0;
+        }
+        .summary-row.net {
+          font-weight: bold;
+          border-top: 1px dashed var(--divider-color);
+          margin-top: 4px;
+          padding-top: 4px;
+          color: var(--primary-color);
+        }
       </style>
       <ha-card>
         <div class="header">
@@ -334,6 +360,22 @@ class MeaElectricBillCard extends HTMLElement {
           <span class="scheme-badge">MEA Type 1.2</span>
         </div>
         <div class="tabs">${tabs}</div>
+
+        <div class="summary-box">
+          <div class="summary-row">
+            <span>พลังงานไฟฟ้าที่ใช้ทั้งหมด:</span>
+            <span>${totalU} kWh</span>
+          </div>
+          <div class="summary-row">
+            <span>พลังงานจาก Solar Cell:</span>
+            <span>-${solarU} kWh</span>
+          </div>
+          <div class="summary-row net">
+            <span>หน่วยไฟฟ้าคงเหลือคิดเงิน:</span>
+            <span>${netU} kWh</span>
+          </div>
+        </div>
+
         <table>
           ${rows}
           <tr class="total-row"><td>Estimated Total</td><td class="num">${bill.total.toFixed(2)} ฿</td></tr>
@@ -371,13 +413,8 @@ class MeaElectricBillCardEditor extends HTMLElement {
     );
   }
 
-  _valueChanged(path, value) {
-    const cfg = { ...this._config };
-    if (path[0] === "entities") {
-      cfg.entities = { ...cfg.entities, [path[1]]: value };
-    } else {
-      cfg[path[0]] = value;
-    }
+  _valueChanged(field, value) {
+    const cfg = { ...this._config, [field]: value };
     this._config = cfg;
     this._emit();
     this._render();
@@ -395,27 +432,6 @@ class MeaElectricBillCardEditor extends HTMLElement {
         input, select { padding: 6px; border-radius: 4px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
         .two-col { display: flex; gap: 12px; }
         .two-col .row { flex: 1; }
-        .row.hint { font-size: 0.8em; color: var(--secondary-text-color); margin-top: -4px; }
-        .entity-row { display: flex; gap: 6px; margin-bottom: 6px; }
-        .entity-row input { flex: 1; }
-        .remove-total {
-          border: 1px solid var(--divider-color);
-          background: var(--card-background-color);
-          color: var(--primary-text-color);
-          border-radius: 4px;
-          cursor: pointer;
-          padding: 0 10px;
-        }
-        .add-total {
-          align-self: flex-start;
-          border: 1px dashed var(--divider-color);
-          background: none;
-          color: var(--primary-color);
-          border-radius: 4px;
-          cursor: pointer;
-          padding: 6px 10px;
-          margin-bottom: 4px;
-        }
       </style>
       <div class="row">
         <label>Name</label>
@@ -438,22 +454,21 @@ class MeaElectricBillCardEditor extends HTMLElement {
           </select>
         </div>
       </div>
+
       <div class="row">
-        <label>Total Energy Sensor(s) (cumulative kWh)</label>
-        ${this._totalEntities()
-          .map(
-            (id, i) => `
-          <div class="entity-row">
-            <input class="entity-total" data-idx="${i}" type="text" list="sensor-options" value="${id}" placeholder="sensor.your_grid_energy_total" />
-            <button class="remove-total" data-idx="${i}" title="Remove">✕</button>
-          </div>`
-          )
-          .join("")}
-        <button class="add-total" type="button">+ Add another sensor</button>
+        <label>1. Sensor ใช้ไฟรวมทั้งหมด (cumulative kWh)</label>
+        <input id="entity_total" type="text" list="sensor-options" value="${cfg.entity_total}" placeholder="sensor.your_grid_energy_total" />
       </div>
+
+      <div class="row">
+        <label>2. Sensor Solar (cumulative kWh - ถ้ามี)</label>
+        <input id="entity_solar" type="text" list="sensor-options" value="${cfg.entity_solar}" placeholder="sensor.your_solar_energy_total" />
+      </div>
+
       <datalist id="sensor-options">
         ${this._sensorOptions()}
       </datalist>
+
       <div class="two-col">
         <div class="row">
           <label>Service Charge (฿/month)</label>
@@ -478,58 +493,19 @@ class MeaElectricBillCardEditor extends HTMLElement {
 
     const $ = (id) => this.shadowRoot.getElementById(id);
 
-    $("name").addEventListener("change", (e) => this._valueChanged(["name"], e.target.value));
-    $("cutoff_day").addEventListener("change", (e) =>
-      this._valueChanged(["cutoff_day"], Number(e.target.value))
-    );
-    $("default_period").addEventListener("change", (e) =>
-      this._valueChanged(["default_period"], e.target.value)
-    );
-    $("service_charge").addEventListener("change", (e) =>
-      this._valueChanged(["service_charge"], Number(e.target.value))
-    );
-    $("ft_baht").addEventListener("change", (e) =>
-      this._valueChanged(["ft_baht"], Number(e.target.value))
-    );
-    $("vat").addEventListener("change", (e) => this._valueChanged(["vat"], Number(e.target.value)));
+    $("name").addEventListener("change", (e) => this._valueChanged("name", e.target.value));
+    $("cutoff_day").addEventListener("change", (e) => this._valueChanged("cutoff_day", Number(e.target.value)));
+    $("default_period").addEventListener("change", (e) => this._valueChanged("default_period", e.target.value));
+    $("entity_total").addEventListener("change", (e) => this._valueChanged("entity_total", e.target.value));
+    $("entity_solar").addEventListener("change", (e) => this._valueChanged("entity_solar", e.target.value));
+    $("service_charge").addEventListener("change", (e) => this._valueChanged("service_charge", Number(e.target.value)));
+    $("ft_baht").addEventListener("change", (e) => this._valueChanged("ft_baht", Number(e.target.value)));
+    $("vat").addEventListener("change", (e) => this._valueChanged("vat", Number(e.target.value)));
 
     const entityFT = $("entity_ft");
     if (entityFT) {
-      entityFT.addEventListener("change", (e) => this._valueChanged(["ft_entity"], e.target.value));
+      entityFT.addEventListener("change", (e) => this._valueChanged("ft_entity", e.target.value));
     }
-
-    this.shadowRoot.querySelectorAll(".entity-total").forEach((input) => {
-      input.addEventListener("change", (e) => {
-        const list = this._totalEntities();
-        list[Number(e.target.dataset.idx)] = e.target.value;
-        this._setTotalEntities(list);
-      });
-    });
-    this.shadowRoot.querySelectorAll(".remove-total").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const list = this._totalEntities();
-        list.splice(Number(btn.dataset.idx), 1);
-        this._setTotalEntities(list.length ? list : [""]);
-      });
-    });
-    const addBtn = this.shadowRoot.querySelector(".add-total");
-    if (addBtn) {
-      addBtn.addEventListener("click", () => {
-        this._setTotalEntities([...this._totalEntities(), ""]);
-      });
-    }
-  }
-
-  _totalEntities() {
-    const list = toArray(this._config.entities.total);
-    return list.length ? [...list] : [""];
-  }
-
-  _setTotalEntities(list) {
-    const cfg = { ...this._config, entities: { ...this._config.entities, total: list } };
-    this._config = cfg;
-    this._emit();
-    this._render();
   }
 
   _sensorOptions() {
@@ -549,5 +525,5 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "mea-electric-bill-card",
   name: "MEA Electric Bill Card (Type 1.2)",
-  description: "Calculate MEA residential electric bill (Type 1.2, Progressive Tiered Rate).",
+  description: "Calculate MEA residential electric bill with Solar deduction.",
 });
