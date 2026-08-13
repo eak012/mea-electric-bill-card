@@ -1,5 +1,5 @@
 /* MEA Electric Bill Card (Type 1.2 Progressive with Solar Deduct)
- * Version: 1.3.0
+ * Version: 1.4.0
  * Custom Lovelace Card for MEA (Metropolitan Electricity Authority, Thailand)
  */
 
@@ -31,10 +31,11 @@ function tieredEnergyCharge(units, tiers) {
   return total;
 }
 
-function getCycleStart(cutoffDay, now) {
-  let start = new Date(now.getFullYear(), now.getMonth(), cutoffDay, 0, 0, 0, 0);
+function getCycleStart(cutoffDay, cutoffTime, now) {
+  const [hours, minutes] = (cutoffTime || "00:00").split(":").map(Number);
+  let start = new Date(now.getFullYear(), now.getMonth(), cutoffDay, hours || 0, minutes || 0, 0, 0);
   if (start > now) {
-    start = new Date(now.getFullYear(), now.getMonth() - 1, cutoffDay, 0, 0, 0, 0);
+    start = new Date(now.getFullYear(), now.getMonth() - 1, cutoffDay, hours || 0, minutes || 0, 0, 0);
   }
   return start;
 }
@@ -46,7 +47,7 @@ const PERIODS = {
   cycle: { label: "Bill cycle" },
 };
 
-function getPeriodStart(period, cutoffDay, now) {
+function getPeriodStart(period, cutoffDay, cutoffTime, now) {
   if (period === "day") {
     return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   }
@@ -57,7 +58,7 @@ function getPeriodStart(period, cutoffDay, now) {
   if (period === "month") {
     return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
   }
-  return getCycleStart(cutoffDay, now);
+  return getCycleStart(cutoffDay, cutoffTime, now);
 }
 
 async function fetchSeries(hass, entityId, start, end) {
@@ -146,7 +147,8 @@ class MeaElectricBillCard extends HTMLElement {
     return {
       type: "custom:mea-electric-bill-card",
       name: "MEA Electric Bill (Type 1.2)",
-      cutoff_day: 1,
+      cutoff_day: 24,
+      cutoff_time: "09:00",
       ft_baht: FT_DEFAULT,
       service_charge: DEFAULT_RATES.serviceCharge,
       vat: VAT_DEFAULT,
@@ -161,7 +163,7 @@ class MeaElectricBillCard extends HTMLElement {
     if (!config.entity_total) {
       throw new Error("entity_total (Sensor ใช้ไฟรวม) is required");
     }
-    const cutoffDay = Number(config.cutoff_day || 1);
+    const cutoffDay = Number(config.cutoff_day || 24);
     if (cutoffDay < 1 || cutoffDay > 31) {
       throw new Error("cutoff_day must be between 1 and 31");
     }
@@ -170,6 +172,7 @@ class MeaElectricBillCard extends HTMLElement {
     this._config = {
       name: config.name || "MEA Electric Bill",
       cutoff_day: cutoffDay,
+      cutoff_time: config.cutoff_time || "09:00",
       ft_baht: config.ft_baht != null ? Number(config.ft_baht) : FT_DEFAULT,
       service_charge: config.service_charge != null ? Number(config.service_charge) : DEFAULT_RATES.serviceCharge,
       vat: Number(config.vat ?? VAT_DEFAULT),
@@ -208,7 +211,7 @@ class MeaElectricBillCard extends HTMLElement {
     if (!this._hass || !this._config) return;
     const cfg = this._config;
     const now = new Date();
-    const start = getPeriodStart(this._period || "cycle", cfg.cutoff_day, now);
+    const start = getPeriodStart(this._period || "cycle", cfg.cutoff_day, cfg.cutoff_time, now);
 
     const totalSegs = await fetchUsageSegments(this._hass, cfg.entity_total, start, now);
     const totalUnits = totalUsageMulti(totalSegs);
@@ -263,7 +266,7 @@ class MeaElectricBillCard extends HTMLElement {
     const bill = this._calcBill();
     const period = this._period || "cycle";
     const cycleLabel = this._cycleStart
-      ? `Since ${this._cycleStart.toLocaleDateString()}`
+      ? `Since ${this._cycleStart.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}`
       : "Loading usage…";
 
     const tabs = Object.entries(PERIODS)
@@ -427,16 +430,20 @@ class MeaElectricBillCardEditor extends HTMLElement {
           <input id="cutoff_day" type="number" min="1" max="31" value="${cfg.cutoff_day}" />
         </div>
         <div class="row">
-          <label>Default View</label>
-          <select id="default_period">
-            ${Object.entries(PERIODS)
-              .map(
-                ([key, def]) =>
-                  `<option value="${key}" ${cfg.default_period === key ? "selected" : ""}>${def.label}</option>`
-              )
-              .join("")}
-          </select>
+          <label>Bill Cutoff Time (HH:MM)</label>
+          <input id="cutoff_time" type="time" value="${cfg.cutoff_time || '09:00'}" />
         </div>
+      </div>
+      <div class="row">
+        <label>Default View</label>
+        <select id="default_period">
+          ${Object.entries(PERIODS)
+            .map(
+              ([key, def]) =>
+                `<option value="${key}" ${cfg.default_period === key ? "selected" : ""}>${def.label}</option>`
+            )
+            .join("")}
+        </select>
       </div>
 
       <div class="row">
@@ -473,6 +480,7 @@ class MeaElectricBillCardEditor extends HTMLElement {
 
     $("name").addEventListener("change", (e) => this._valueChanged("name", e.target.value));
     $("cutoff_day").addEventListener("change", (e) => this._valueChanged("cutoff_day", Number(e.target.value)));
+    $("cutoff_time").addEventListener("change", (e) => this._valueChanged("cutoff_time", e.target.value));
     $("default_period").addEventListener("change", (e) => this._valueChanged("default_period", e.target.value));
     $("entity_total").addEventListener("change", (e) => this._valueChanged("entity_total", e.target.value));
     $("entity_solar").addEventListener("change", (e) => this._valueChanged("entity_solar", e.target.value));
