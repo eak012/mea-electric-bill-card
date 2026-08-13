@@ -6,6 +6,8 @@
 Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนวณและประมาณการค่าไฟฟ้าของการฟ้านครหลวง (**MEA**) ประเภท **1.2 (อัตราปกติ ปริมาณการใช้ > 150 หน่วย/เดือน)** คำนวณแบบอัตราก้าวหน้า (Progressive Rate) พร้อมรองรับการนำหน่วยไฟฟ้าจาก **Solar Cell** มาหักลบ และกำหนดวัน-เวลาตัดรอบบิลได้ตรงตามการจดมิเตอร์จริง
 
 ---
+<img width="340" height="398" alt="Screenshot 2569-08-13 at 10 15 42" src="https://github.com/user-attachments/assets/03c4ea7d-fe87-4de8-b871-a52dc668c006" />
+
 
 ## 🌟 ฟีเจอร์เด่น (Key Features)
 
@@ -64,6 +66,7 @@ service_charge: 24.62
 ft_baht: 0.3972
 vat: 7
 ```
+<img width="1012" height="637" alt="Screenshot 2569-08-13 at 10 16 27" src="https://github.com/user-attachments/assets/27dda557-5aea-48a4-b85e-a037ef99f48d" />
 
 | ตัวแปร | ชนิดข้อมูล | จำเป็น | ค่าเริ่มต้น | คำอธิบาย |
 | :--- | :---: | :---: | :---: | :--- |
