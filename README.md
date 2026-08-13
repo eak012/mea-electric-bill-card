@@ -41,11 +41,11 @@ Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนว
 4. ในช่อง **Repository** ให้ใส่ URL:
    ```text
    https://github.com/eak012/mea-electric-bill-card
-1. ในช่อง Type เลือกเป็น Dashboard (หรือ Plugin)
+5. ในช่อง Type เลือกเป็น Dashboard (หรือ Plugin)
 
-2. กด ADD จากนั้นค้นหาการ์ด MEA Electric Bill Card แล้วกด INSTALL
+6. กด ADD จากนั้นค้นหาการ์ด MEA Electric Bill Card แล้วกด INSTALL
 
-3. ทำการ Reload หน้าเว็บเบราว์เซอร์ 1 ครั้ง (Ctrl + F5 หรือ Cmd + Shift + R)
+7. ทำการ Reload หน้าเว็บเบราว์เซอร์ 1 ครั้ง (Ctrl + F5 หรือ Cmd + Shift + R)
 
 ⚙️ วิธีการตั้งค่าใช้งาน (Configuration)
 
