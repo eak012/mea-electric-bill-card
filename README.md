@@ -80,5 +80,11 @@ vat: 7
 | `ft_baht` | number | ไม่บังคับ | `0.3972` | อัตราค่า Ft ประจำงวด (บาท/หน่วย) |
 | `vat` | number | ไม่บังคับ | `7` | อัตราภาษีมูลค่าเพิ่ม (%) |
 
+---
+
+## 🙏 Credits & Acknowledgments
+
+โปรเจกต์นี้ได้รับการพัฒนาต่อยอดมาจาก [hass-pea-electric-bill](https://github.com/mrkaqz/hass-pea-electric-bill) โดยคุณ [mrkaqz](https://github.com/mrkaqz) ทางผู้พัฒนาต้องขอขอบคุณโครงสร้างโค้ดต้นฉบับที่ช่วยเป็นรากฐานในการปรับปรุงให้รองรับอัตราค่าไฟฟ้า MEA ประเภท 1.2 ครับ
+
 📄 License
 This project is open-source and available under the [MIT License.](https://gemini.google.com/u/3/LICENSE)
