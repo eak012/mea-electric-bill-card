@@ -6,9 +6,6 @@
 Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนวณและประมาณการค่าไฟฟ้าของการฟ้านครหลวง (**MEA**) ประเภท **1.2 (อัตราปกติ ปริมาณการใช้ > 150 หน่วย/เดือน)** คำนวณแบบอัตราก้าวหน้า (Progressive Rate) พร้อมรองรับการนำหน่วยไฟฟ้าจาก **Solar Cell** มาหักลบ และกำหนดวัน-เวลาตัดรอบบิลได้ตรงตามการจดมิเตอร์จริง
 
 ---
-<img width="340" height="398" alt="Screenshot 2569-08-13 at 10 15 42" src="https://github.com/user-attachments/assets/03c4ea7d-fe87-4de8-b871-a52dc668c006" />
-
-
 ## 🌟 ฟีเจอร์เด่น (Key Features)
 
 * **คำนวณตามโครงสร้างราคา MEA ประเภท 1.2 สองขั้นบันได:**
@@ -30,6 +27,7 @@ Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนว
 * **พลังงานจาก Solar Cell (kWh):** ดึงจาก Sensor โซลาร์เซลล์
 * **หน่วยไฟฟ้าคงเหลือคิดเงิน (kWh):** ผลลัพธ์จากการนำมาลบกัน
 * **รายการประมาณการค่าไฟ:** แสดงแยกรายละเอียด ค่าพลังงานไฟฟ้า, ค่าบริการรายเดือน, ค่า Ft และ VAT 7%
+<img width="340" height="398" alt="Screenshot 2569-08-13 at 10 15 42" src="https://github.com/user-attachments/assets/03c4ea7d-fe87-4de8-b871-a52dc668c006" />
 
 ---
 
@@ -84,7 +82,7 @@ vat: 7
 
 ## 🙏 Credits & Acknowledgments
 
-โปรเจกต์นี้ได้รับการพัฒนาต่อยอดมาจาก [hass-pea-electric-bill](https://github.com/mrkaqz/hass-pea-electric-bill) โดยคุณ [mrkaqz](https://github.com/mrkaqz) ทางผู้พัฒนาต้องขอขอบคุณโครงสร้างโค้ดต้นฉบับที่ช่วยเป็นรากฐานในการปรับปรุงให้รองรับอัตราค่าไฟฟ้า MEA ประเภท 1.2 ครับ
+โปรเจกต์นี้ได้รับการพัฒนาต่อยอดและรับแรงบันดาลใจมาจาก [hass-mea-electric-bill](https://github.com/pakkardkaw/hass-mea-electric-bill) โดยคุณ [pakkardkaw](https://github.com/pakkardkaw) ขอขอบคุณแนวคิดและโครงสร้างโค้ดตั้งต้นที่นำมาพัฒนาต่อเพื่อเพิ่มระบบหักลบพลังงาน Solar Cell และการตั้งเวลาตัดรอบบิลครับ
 
 📄 License
 This project is open-source and available under the [MIT License.](https://gemini.google.com/u/3/LICENSE)
