@@ -1,5 +1,5 @@
-/* MEA Electric Bill Card (Type 1.2)
- * Version: 1.0.0
+/* MEA Electric Bill Card (Type 1.2 Progressive)
+ * Version: 1.1.1
  * Custom Lovelace Card for MEA (Metropolitan Electricity Authority, Thailand)
  * Residential Type 1.2 (>150 units/month, Non-TOU Progressive Rate)
  */
@@ -14,7 +14,7 @@ const DEFAULT_RATES = {
 };
 
 const VAT_DEFAULT = 7;
-const FT_DEFAULT = 0.3972; // ค่า Ft ตั้งต้น (สามารถปรับเปลี่ยนได้ใน Card Config หรือใช้ Ft Sensor)
+const FT_DEFAULT = 0.3972;
 
 function tieredEnergyCharge(units, tiers) {
   let remaining = Math.max(0, units);
@@ -154,6 +154,7 @@ class MeaElectricBillCard extends HTMLElement {
       name: "MEA Electric Bill (Type 1.2)",
       cutoff_day: 1,
       ft_baht: FT_DEFAULT,
+      service_charge: DEFAULT_RATES.serviceCharge,
       vat: VAT_DEFAULT,
       default_period: "cycle",
       entities: {},
@@ -173,11 +174,13 @@ class MeaElectricBillCard extends HTMLElement {
     const defaultPeriod = PERIODS[config.default_period] ? config.default_period : "cycle";
 
     const ftBaht = config.ft_baht != null ? Number(config.ft_baht) : FT_DEFAULT;
+    const serviceCharge = config.service_charge != null ? Number(config.service_charge) : DEFAULT_RATES.serviceCharge;
 
     this._config = {
       name: config.name || "MEA Electric Bill",
       cutoff_day: cutoffDay,
       ft_baht: ftBaht,
+      service_charge: serviceCharge,
       ft_entity: config.ft_entity || "",
       vat: Number(config.vat ?? VAT_DEFAULT),
       entities,
@@ -249,7 +252,7 @@ class MeaElectricBillCard extends HTMLElement {
     
     const units = this._usage && this._usage.units != null ? this._usage.units : 0;
     const energyCharge = tieredEnergyCharge(units, rateSet.tiers);
-    const serviceCharge = rateSet.serviceCharge || DEFAULT_RATES.serviceCharge;
+    const serviceCharge = cfg.service_charge != null ? cfg.service_charge : DEFAULT_RATES.serviceCharge;
     
     const lines = [];
     lines.push([`Energy charge (${units.toFixed(2)} units)`, energyCharge]);
@@ -453,17 +456,23 @@ class MeaElectricBillCardEditor extends HTMLElement {
       </datalist>
       <div class="two-col">
         <div class="row">
+          <label>Service Charge (฿/month)</label>
+          <input id="service_charge" type="number" step="0.01" value="${cfg.service_charge != null ? cfg.service_charge : DEFAULT_RATES.serviceCharge}" />
+        </div>
+        <div class="row">
           <label>Ft Rate (฿/unit)</label>
           <input id="ft_baht" type="number" step="0.0001" value="${cfg.ft_baht}" />
         </div>
+      </div>
+      <div class="two-col">
         <div class="row">
           <label>VAT (%)</label>
           <input id="vat" type="number" step="0.1" value="${cfg.vat}" />
         </div>
-      </div>
-      <div class="row">
-        <label>Ft Sensor (optional, overrides manual value)</label>
-        <input id="entity_ft" type="text" list="sensor-options" value="${cfg.ft_entity || ""}" placeholder="sensor.mea_ft_rate" />
+        <div class="row">
+          <label>Ft Sensor (optional)</label>
+          <input id="entity_ft" type="text" list="sensor-options" value="${cfg.ft_entity || ""}" placeholder="sensor.mea_ft_rate" />
+        </div>
       </div>
     `;
 
@@ -475,6 +484,9 @@ class MeaElectricBillCardEditor extends HTMLElement {
     );
     $("default_period").addEventListener("change", (e) =>
       this._valueChanged(["default_period"], e.target.value)
+    );
+    $("service_charge").addEventListener("change", (e) =>
+      this._valueChanged(["service_charge"], Number(e.target.value))
     );
     $("ft_baht").addEventListener("change", (e) =>
       this._valueChanged(["ft_baht"], Number(e.target.value))
