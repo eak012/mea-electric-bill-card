@@ -1,5 +1,5 @@
 /* MEA Electric Bill Card (Type 1.2 Progressive with Solar Deduct)
- * Version: 1.2.0
+ * Version: 1.3.0
  * Custom Lovelace Card for MEA (Metropolitan Electricity Authority, Thailand)
  */
 
@@ -172,7 +172,6 @@ class MeaElectricBillCard extends HTMLElement {
       cutoff_day: cutoffDay,
       ft_baht: config.ft_baht != null ? Number(config.ft_baht) : FT_DEFAULT,
       service_charge: config.service_charge != null ? Number(config.service_charge) : DEFAULT_RATES.serviceCharge,
-      ft_entity: config.ft_entity || "",
       vat: Number(config.vat ?? VAT_DEFAULT),
       entity_total: config.entity_total || "",
       entity_solar: config.entity_solar || "",
@@ -211,18 +210,15 @@ class MeaElectricBillCard extends HTMLElement {
     const now = new Date();
     const start = getPeriodStart(this._period || "cycle", cfg.cutoff_day, now);
 
-    // ดึงข้อมูลหน่วยไฟรวม
     const totalSegs = await fetchUsageSegments(this._hass, cfg.entity_total, start, now);
     const totalUnits = totalUsageMulti(totalSegs);
 
-    // ดึงข้อมูลหน่วย Solar (ถ้ามี)
     let solarUnits = 0;
     if (cfg.entity_solar) {
       const solarSegs = await fetchUsageSegments(this._hass, cfg.entity_solar, start, now);
       solarUnits = totalUsageMulti(solarSegs);
     }
 
-    // คำนวณหน่วยคงเหลือ (ห้ามติดลบ)
     const netUnits = Math.max(0, totalUnits - solarUnits);
 
     this._usage = {
@@ -235,22 +231,10 @@ class MeaElectricBillCard extends HTMLElement {
     this._render();
   }
 
-  _resolveFt() {
-    const cfg = this._config;
-    if (cfg.ft_entity && this._hass) {
-      const state = this._hass.states[cfg.ft_entity];
-      if (state && state.state != null) {
-        const val = parseFloat(state.state);
-        if (!Number.isNaN(val)) return val;
-      }
-    }
-    return cfg.ft_baht;
-  }
-
   _calcBill() {
     const cfg = this._config;
     const vat = cfg.vat;
-    const ft = this._resolveFt();
+    const ft = cfg.ft_baht != null ? cfg.ft_baht : FT_DEFAULT;
     const rateSet = cfg.rates.tiers ? cfg.rates : DEFAULT_RATES;
     
     const units = this._usage ? this._usage.netUnits : 0;
@@ -479,15 +463,9 @@ class MeaElectricBillCardEditor extends HTMLElement {
           <input id="ft_baht" type="number" step="0.0001" value="${cfg.ft_baht}" />
         </div>
       </div>
-      <div class="two-col">
-        <div class="row">
-          <label>VAT (%)</label>
-          <input id="vat" type="number" step="0.1" value="${cfg.vat}" />
-        </div>
-        <div class="row">
-          <label>Ft Sensor (optional)</label>
-          <input id="entity_ft" type="text" list="sensor-options" value="${cfg.ft_entity || ""}" placeholder="sensor.mea_ft_rate" />
-        </div>
+      <div class="row">
+        <label>VAT (%)</label>
+        <input id="vat" type="number" step="0.1" value="${cfg.vat}" />
       </div>
     `;
 
@@ -501,11 +479,6 @@ class MeaElectricBillCardEditor extends HTMLElement {
     $("service_charge").addEventListener("change", (e) => this._valueChanged("service_charge", Number(e.target.value)));
     $("ft_baht").addEventListener("change", (e) => this._valueChanged("ft_baht", Number(e.target.value)));
     $("vat").addEventListener("change", (e) => this._valueChanged("vat", Number(e.target.value)));
-
-    const entityFT = $("entity_ft");
-    if (entityFT) {
-      entityFT.addEventListener("change", (e) => this._valueChanged("ft_entity", e.target.value));
-    }
   }
 
   _sensorOptions() {
