@@ -1,5 +1,5 @@
-/* MEA Electric Bill Card (Type 1.2 Progressive with Solar Deduct)
- * Version: 1.4.0
+/* MEA Electric Bill Card (Type 1.2 Progressive with Solar Deduct & History)
+ * Version: 2.0.0 (All-in-One: Live Bill & Historical Table from Statistics)
  * Custom Lovelace Card for MEA (Metropolitan Electricity Authority, Thailand)
  */
 
@@ -153,6 +153,7 @@ class MeaElectricBillCard extends HTMLElement {
       service_charge: DEFAULT_RATES.serviceCharge,
       vat: VAT_DEFAULT,
       default_period: "cycle",
+      history_months: 3,
       entity_total: "",
       entity_solar: "",
     };
@@ -176,12 +177,14 @@ class MeaElectricBillCard extends HTMLElement {
       ft_baht: config.ft_baht != null ? Number(config.ft_baht) : FT_DEFAULT,
       service_charge: config.service_charge != null ? Number(config.service_charge) : DEFAULT_RATES.serviceCharge,
       vat: Number(config.vat ?? VAT_DEFAULT),
+      history_months: config.history_months != null ? Number(config.history_months) : 3,
       entity_total: config.entity_total || "",
       entity_solar: config.entity_solar || "",
       rates: config.rates || DEFAULT_RATES,
     };
     if (!this._period) this._period = defaultPeriod;
     this._lastFetch = 0;
+    this._historyData = [];
     this._render();
   }
 
@@ -197,7 +200,7 @@ class MeaElectricBillCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 4;
+    return 6;
   }
 
   _setPeriod(period) {
@@ -207,40 +210,70 @@ class MeaElectricBillCard extends HTMLElement {
     this._updateUsage();
   }
 
+  async _calculatePeriodBill(start, end) {
+    const cfg = this._config;
+    const totalSegs = await fetchUsageSegments(this._hass, cfg.entity_total, start, end);
+    const totalUnits = totalUsageMulti(totalSegs);
+
+    let solarUnits = 0;
+    if (cfg.entity_solar) {
+      const solarSegs = await fetchUsageSegments(this._hass, cfg.entity_solar, start, end);
+      solarUnits = totalUsageMulti(solarSegs);
+    }
+
+    const netUnits = Math.max(0, totalUnits - solarUnits);
+    const bill = this._calcBillFromUnits(netUnits);
+    return {
+      totalUnits,
+      solarUnits,
+      netUnits,
+      cost: bill.total,
+    };
+  }
+
   async _updateUsage() {
     if (!this._hass || !this._config) return;
     const cfg = this._config;
     const now = new Date();
     const start = getPeriodStart(this._period || "cycle", cfg.cutoff_day, cfg.cutoff_time, now);
 
-    const totalSegs = await fetchUsageSegments(this._hass, cfg.entity_total, start, now);
-    const totalUnits = totalUsageMulti(totalSegs);
-
-    let solarUnits = 0;
-    if (cfg.entity_solar) {
-      const solarSegs = await fetchUsageSegments(this._hass, cfg.entity_solar, start, now);
-      solarUnits = totalUsageMulti(solarSegs);
-    }
-
-    const netUnits = Math.max(0, totalUnits - solarUnits);
-
-    this._usage = {
-      totalUnits,
-      solarUnits,
-      netUnits,
-    };
-
+    // 1. คำนวณช่วงปัจจุบัน
+    const currentUsage = await this._calculatePeriodBill(start, now);
+    this._usage = currentUsage;
     this._cycleStart = start;
+
+    // 2. ดึงประวัติรอบบิลย้อนหลังตามจำนวนเดือนที่ระบุ
+    const historyMonths = cfg.history_months;
+    const historyRows = [];
+    const [hours, minutes] = (cfg.cutoff_time || "00:00").split(":").map(Number);
+
+    if (historyMonths > 0) {
+      let currentCycleStart = getCycleStart(cfg.cutoff_day, cfg.cutoff_time, now);
+      for (let i = 1; i <= historyMonths; i++) {
+        let prevCycleStart = new Date(currentCycleStart.getFullYear(), currentCycleStart.getMonth() - 1, cfg.cutoff_day, hours || 0, minutes || 0, 0, 0);
+        let prevCycleEnd = new Date(currentCycleStart.getTime());
+
+        const histUsage = await this._calculatePeriodBill(prevCycleStart, prevCycleEnd);
+        const monthLabel = `${prevCycleEnd.getFullYear()}-${String(prevCycleEnd.getMonth() + 1).padStart(2, '0')}`;
+        
+        historyRows.push({
+          label: monthLabel,
+          ...histUsage
+        });
+
+        currentCycleStart = prevCycleStart;
+      }
+    }
+    this._historyData = historyRows;
     this._render();
   }
 
-  _calcBill() {
+  _calcBillFromUnits(units) {
     const cfg = this._config;
     const vat = cfg.vat;
     const ft = cfg.ft_baht != null ? cfg.ft_baht : FT_DEFAULT;
     const rateSet = cfg.rates.tiers ? cfg.rates : DEFAULT_RATES;
     
-    const units = this._usage ? this._usage.netUnits : 0;
     const energyCharge = tieredEnergyCharge(units, rateSet.tiers);
     const serviceCharge = cfg.service_charge != null ? cfg.service_charge : DEFAULT_RATES.serviceCharge;
     
@@ -257,6 +290,11 @@ class MeaElectricBillCard extends HTMLElement {
     const total = subtotal + vatAmount;
 
     return { units, lines, total };
+  }
+
+  _calcBill() {
+    const units = this._usage ? this._usage.netUnits : 0;
+    return this._calcBillFromUnits(units);
   }
 
   _render() {
@@ -287,9 +325,22 @@ class MeaElectricBillCard extends HTMLElement {
     const solarU = this._usage ? this._usage.solarUnits.toFixed(2) : "0.00";
     const netU = this._usage ? this._usage.netUnits.toFixed(2) : "0.00";
 
+    const now = new Date();
+    const currentMonthLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+    // สร้างแถวตารางประวัติย้อนหลัง
+    const historyRowsHtml = (this._historyData || []).map(row => `
+      <tr>
+        <td><b>${row.label}</b></td>
+        <td class="num">${row.totalUnits.toFixed(2)} <small>kWh</small></td>
+        <td class="num"><span class="solar-txt">-${row.solarUnits.toFixed(2)}</span> <small>kWh</small></td>
+        <td class="num cost-txt">${row.cost.toFixed(2)} <small>฿</small></td>
+      </tr>
+    `).join('');
+
     this.shadowRoot.innerHTML = `
       <style>
-        ha-card { padding: 16px; }
+        ha-card { padding: 16px; font-family: var(--paper-font-body1_-_font-family, inherit); }
         .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
         .cycle { font-size: 0.85em; color: var(--secondary-text-color); }
         table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
@@ -337,6 +388,46 @@ class MeaElectricBillCard extends HTMLElement {
           padding-top: 4px;
           color: var(--primary-color);
         }
+        
+        /* สไตล์ตารางประวัติย้อนหลัง */
+        .history-section {
+          margin-top: 16px;
+          border-top: 1px solid var(--divider-color);
+          padding-top: 12px;
+        }
+        .history-title {
+          font-weight: bold;
+          font-size: 1.0em;
+          margin-bottom: 8px;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .history-table th, .history-table td {
+          padding: 6px 2px;
+          border-bottom: 1px solid var(--divider-color, #e0e0e0);
+        }
+        .history-table th {
+          color: var(--secondary-text-color);
+          font-weight: 500;
+          text-align: left;
+          font-size: 0.85em;
+        }
+        .history-table th.num { text-align: right; }
+        tr.current-row {
+          background-color: var(--secondary-background-color, #f0f4f8);
+          font-weight: 500;
+        }
+        .badge-live {
+          font-size: 0.7em;
+          background: var(--primary-color, #03a9f4);
+          color: #fff;
+          padding: 1px 4px;
+          border-radius: 3px;
+          margin-left: 4px;
+        }
+        .solar-txt { color: var(--success-color, #4caf50); }
+        .cost-txt { font-weight: bold; color: var(--primary-color); }
       </style>
       <ha-card>
         <div class="header">
@@ -367,6 +458,34 @@ class MeaElectricBillCard extends HTMLElement {
           ${rows}
           <tr class="total-row"><td>Estimated Total</td><td class="num">${bill.total.toFixed(2)} ฿</td></tr>
         </table>
+
+        ${this._config.history_months > 0 ? `
+          <div class="history-section">
+            <div class="history-title">
+              <ha-icon icon="mdi:history"></ha-icon>
+              <span>สถิติค่าไฟฟ้าย้อนหลังตามรอบบิล</span>
+            </div>
+            <table class="history-table">
+              <thead>
+                <tr>
+                  <th>รอบบิล</th>
+                  <th class="num">ใช้ไฟ</th>
+                  <th class="num">Solar</th>
+                  <th class="num">ค่าไฟ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="current-row">
+                  <td><b>${currentMonthLabel}</b><span class="badge-live">สด</span></td>
+                  <td class="num">${totalU} <small>kWh</small></td>
+                  <td class="num"><span class="solar-txt">-${solarU}</span> <small>kWh</small></td>
+                  <td class="num cost-txt">${bill.total.toFixed(2)} <small>฿</small></td>
+                </tr>
+                ${historyRowsHtml}
+              </tbody>
+            </table>
+          </div>
+        ` : ''}
       </ha-card>
     `;
 
@@ -434,16 +553,27 @@ class MeaElectricBillCardEditor extends HTMLElement {
           <input id="cutoff_time" type="time" value="${cfg.cutoff_time || '09:00'}" />
         </div>
       </div>
-      <div class="row">
-        <label>Default View</label>
-        <select id="default_period">
-          ${Object.entries(PERIODS)
-            .map(
-              ([key, def]) =>
-                `<option value="${key}" ${cfg.default_period === key ? "selected" : ""}>${def.label}</option>`
-            )
-            .join("")}
-        </select>
+      <div class="two-col">
+        <div class="row">
+          <label>Default View</label>
+          <select id="default_period">
+            ${Object.entries(PERIODS)
+              .map(
+                ([key, def]) =>
+                  `<option value="${key}" ${cfg.default_period === key ? "selected" : ""}>${def.label}</option>`
+              )
+              .join("")}
+          </select>
+        </div>
+        <div class="row">
+          <label>จำนวนรอบบิลย้อนหลัง (History Months)</label>
+          <select id="history_months">
+            <option value="0" ${cfg.history_months === 0 ? "selected" : ""}>ไม่แสดงประวัติ</option>
+            <option value="3" ${cfg.history_months === 3 ? "selected" : ""}>ย้อนหลัง 3 เดือน</option>
+            <option value="6" ${cfg.history_months === 6 ? "selected" : ""}>ย้อนหลัง 6 เดือน</option>
+            <option value="12" ${cfg.history_months === 12 ? "selected" : ""}>ย้อนหลัง 12 เดือน (1 ปี)</option>
+          </select>
+        </div>
       </div>
 
       <div class="row">
@@ -482,6 +612,7 @@ class MeaElectricBillCardEditor extends HTMLElement {
     $("cutoff_day").addEventListener("change", (e) => this._valueChanged("cutoff_day", Number(e.target.value)));
     $("cutoff_time").addEventListener("change", (e) => this._valueChanged("cutoff_time", e.target.value));
     $("default_period").addEventListener("change", (e) => this._valueChanged("default_period", e.target.value));
+    $("history_months").addEventListener("change", (e) => this._valueChanged("history_months", Number(e.target.value)));
     $("entity_total").addEventListener("change", (e) => this._valueChanged("entity_total", e.target.value));
     $("entity_solar").addEventListener("change", (e) => this._valueChanged("entity_solar", e.target.value));
     $("service_charge").addEventListener("change", (e) => this._valueChanged("service_charge", Number(e.target.value)));
@@ -506,5 +637,5 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "mea-electric-bill-card",
   name: "MEA Electric Bill Card (Type 1.2)",
-  description: "Calculate MEA residential electric bill with Solar deduction.",
+  description: "Calculate MEA residential electric bill with Solar deduction and history table.",
 });
