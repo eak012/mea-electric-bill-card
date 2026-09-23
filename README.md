@@ -82,19 +82,20 @@ vat: 7
 ```
 <img width="1012" height="637" alt="Screenshot 2569-08-13 at 10 16 27" src="https://github.com/user-attachments/assets/27dda557-5aea-48a4-b85e-a037ef99f48d" />
 
+### พารามิเตอร์การตั้งค่า (Card Options)
+
 | ตัวแปร | ชนิดข้อมูล | จำเป็น | ค่าเริ่มต้น | คำอธิบาย |
 | :--- | :---: | :---: | :---: | :--- |
 | `name` | string | ไม่บังคับ | `MEA Electric Bill` | ชื่อหัวข้อที่จะแสดงบนการ์ด |
-| `entity_total` | string | **จำเป็น** | - | Entity ID ของ Sensor ที่วัดหน่วยใช้ไฟรวมสะสม (`cumulative kWh`) |
-| `entity_solar` | string | ไม่บังคับ | - | Entity ID ของ Sensor ที่วัดหน่วยไฟ Solar Cell สะสม (`cumulative kWh`) |
+| `entity_total` | string | **จำเป็น** | - | Entity ID ของ Sensor วัดหน่วยใช้ไฟรวมสะสมตลอดกาล (`cumulative kWh`) |
+| `entity_solar` | string | ไม่บังคับ | - | Entity ID ของ Sensor วัดหน่วยไฟ Solar Cell สะสมตลอดกาล (`cumulative kWh`) |
 | `cutoff_day` | number | ไม่บังคับ | `24` | วันที่ตัดรอบบิลของมิเตอร์ (1 - 31) |
 | `cutoff_time` | string | ไม่บังคับ | `09:00` | เวลาตัดรอบบิล รูปแบบ `HH:MM` |
 | `default_period` | string | ไม่บังคับ | `cycle` | มุมมองเริ่มต้นเมื่อเปิดการ์ด (`day`, `week`, `month`, `cycle`) |
+| `history_months` | number | ไม่บังคับ | `3` | จำนวนรอบบิลที่ต้องการแสดงในตารางประวัติย้อนหลัง (`0`, `3`, `6`, `12`) |
 | `service_charge` | number | ไม่บังคับ | `24.62` | ค่าบริการรายเดือน (บาท/เดือน) |
-| `ft_baht` | number | ไม่บังคับ | `0.1623` | อัตราค่า Ft ประจำงวด (บาท/หน่วย) |
+| `ft_baht` | number | ไม่บังคับ | `0.3972` | อัตราค่า Ft ประจำงวด (บาท/หน่วย) |
 | `vat` | number | ไม่บังคับ | `7` | อัตราภาษีมูลค่าเพิ่ม (%) |
-
----
 
 ## 🙏 Credits & Acknowledgments
 
