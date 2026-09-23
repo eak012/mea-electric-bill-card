@@ -216,11 +216,10 @@ class MeaElectricBillCard extends HTMLElement {
     const totalSegs = await fetchUsageSegments(this._hass, cfg.entity_total, start, now);
     const totalUnits = totalUsageMulti(totalSegs);
 
-    let solarUnits = 0;
-    if (cfg.entity_solar) {
-      const solarSegs = await fetchUsageSegments(this._hass, cfg.entity_solar, start, now);
-      solarUnits = totalUsageMulti(solarSegs);
-    }
+let solarUnits = 0;
+if (cfg.entity_solar && this._hass.states[cfg.entity_solar]) {
+  solarUnits = parseFloat(this._hass.states[cfg.entity_solar].state) || 0;
+}
 
     const netUnits = Math.max(0, totalUnits - solarUnits);
 
