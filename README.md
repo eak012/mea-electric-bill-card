@@ -1,18 +1,20 @@
 # MEA Electric Bill Card (Type 1.2) ⚡
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/default)
-[![version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/eak012/mea-electric-bill-card)
+[![version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://github.com/eak012/mea-electric-bill-card)
 
-Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนวณและประมาณการค่าไฟฟ้าของการฟ้านครหลวง (**MEA**) ประเภท **1.2 (อัตราปกติ ปริมาณการใช้ > 150 หน่วย/เดือน)** คำนวณแบบอัตราก้าวหน้า (Progressive Rate) พร้อมรองรับการนำหน่วยไฟฟ้าจาก **Solar Cell** มาหักลบ และกำหนดวัน-เวลาตัดรอบบิลได้ตรงตามการจดมิเตอร์จริง
+Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนวณและประมาณการค่าไฟฟ้าของการฟ้านครหลวง (**MEA**) ประเภท **1.2 (อัตราปกติ ปริมาณการใช้ > 150 หน่วย/เดือน)** คำนวณแบบอัตราก้าวหน้า (Progressive Rate) พร้อมรองรับการนำหน่วยไฟฟ้าจาก **Solar Cell** มาหักลบ กำหนดวัน-เวลาตัดรอบบิลได้ตรงตามการจดมิเตอร์จริง และมีตารางแสดงสถิติค่าไฟฟ้าย้อนหลังตามรอบบิลในตัวโดยไม่ต้องสร้าง Automation เพิ่มเติม
 
 ---
+
 ## 🌟 ฟีเจอร์เด่น (Key Features)
 
-* **คำนวณตามโครงสร้างราคา MEA ประเภท 1.2 สองขั้นบันได:**
+* **คำนวณตามโครงสร้างราคา MEA ประเภท 1.2 อัตราก้าวหน้า:**
   * **หน่วยที่ 1 - 150:** 3.2484 บาท/หน่วย
   * **หน่วยที่ 151 - 400:** 4.2218 บาท/หน่วย
   * **หน่วยที่ 401 เป็นต้นไป:** 4.4217 บาท/หน่วย
 * **ระบบหักลบพลังงานจาก Solar Cell:** มีช่องใส่ Sensor แยกเพื่อนำหน่วยไฟที่ผลิตได้จาก Solar Cell มาลบออกจากหน่วยไฟรวมก่อนนำไปคำนวณค่าไฟ
+* **ตารางสถิติค่าไฟฟ้าย้อนหลังในตัว (Historical Bill Table):** คำนวณยอดใช้ไฟจริง, หัก Solar และคิดยอดค่าไฟย้อนหลังแต่ละรอบบิลได้อัตโนมัติ (เลือกดูได้ 3, 6 หรือ 12 เดือน) โดยดึงข้อมูลจาก Home Assistant Long-Term Statistics โดยตรง ไม่ต้องพึ่ง `input_text` หรือ Automation
 * **กำหนดวันและเวลาตัดรอบบิล (Bill Cutoff Day & Time):** ระบุวันที่และเวลาที่เจ้าหน้าที่มาจดมิเตอร์จริงได้ (เช่น วันที่ 24 เวลา 09:00 น.)
 * **ปุ่มสลับช่วงเวลาการดูยอด (Time Period Switcher):** กดดูยอดสรุปและค่าไฟได้ 4 ช่วงเวลา: `Day`, `Week`, `Month`, และ `Bill Cycle`
 * **ปรับเปลี่ยนค่าบริการและค่า Ft ได้ง่าย:** สามารถระบุค่าบริการรายเดือน (ค่าเริ่มต้น 24.62 บาท) และค่า Ft ประจำงวดผ่านหน้า UI Config ได้ทันที
@@ -22,12 +24,25 @@ Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนว
 
 ## 📸 การแสดงผลบนการ์ด (Card View)
 
-การ์ดจะแสดงกล่องสรุปพลังงานไฟฟ้าก่อนคิดเงินอย่างชัดเจน:
-* **พลังงานไฟฟ้าที่ใช้ทั้งหมด (kWh):** ดึงจาก Sensor มิเตอร์ไฟรวม
-* **พลังงานจาก Solar Cell (kWh):** ดึงจาก Sensor โซลาร์เซลล์
+การ์ดจะแสดงกล่องสรุปพลังงานไฟฟ้าก่อนคิดเงิน พร้อมตารางแยกรายละเอียดค่าไฟและตารางสถิติตามรอบบิล:
+* **พลังงานไฟฟ้าที่ใช้ทั้งหมด (kWh):** ดึงจาก Sensor มิเตอร์ไฟรวมสะสม
+* **พลังงานจาก Solar Cell (kWh):** ดึงจาก Sensor โซลาร์เซลล์สะสม
 * **หน่วยไฟฟ้าคงเหลือคิดเงิน (kWh):** ผลลัพธ์จากการนำมาลบกัน
 * **รายการประมาณการค่าไฟ:** แสดงแยกรายละเอียด ค่าพลังงานไฟฟ้า, ค่าบริการรายเดือน, ค่า Ft และ VAT 7%
+* **สถิติค่าไฟฟ้าย้อนหลังตามรอบบิล:** ตารางสรุปหน่วยใช้ไฟ, หน่วยโซลาร์เซลล์ และยอดค่าไฟย้อนหลังแยกรายเดือน
+
 <img width="340" height="398" alt="Screenshot 2569-08-13 at 10 15 42" src="https://github.com/user-attachments/assets/03c4ea7d-fe87-4de8-b871-a52dc668c006" />
+
+---
+
+## ⚠️ ข้อกำหนดของ Sensor ที่ใช้งาน (Sensor Requirements)
+
+การ์ดใบนี้ดึงข้อมูลประวัติย้อนหลังจากระบบ Long-Term Statistics ของ Home Assistant ดังนั้น Sensor ทั้งสองช่องจะต้องเป็น **Sensor ค่าพลังงานสะสมตลอดกาล (Cumulative / Lifetime Energy)**:
+* `entity_total` และ `entity_solar` ต้องมี Attributes:
+  * `device_class: energy`
+  * `state_class: total` หรือ `total_increasing`
+  * `unit_of_measurement: kWh` (หรือ Wh)
+* **ไม่ควรใช้ Sensor ที่มีการรีเซ็ตค่าเป็น 0 ทุกสิ้นเดือน** เพื่อให้ระบบคำนวณย้อนหลังข้ามรอบบิลวันที่ตัดรอบได้อย่างถูกต้อง
 
 ---
 
@@ -58,10 +73,11 @@ name: ค่าไฟฟ้า MEA (บ้าน)
 cutoff_day: 24
 cutoff_time: "09:00"
 default_period: cycle
+history_months: 3
 entity_total: sensor.grid_energy_total
 entity_solar: sensor.solar_energy_total
 service_charge: 24.62
-ft_baht: 0.3972
+ft_baht: 0.1623
 vat: 7
 ```
 <img width="1012" height="637" alt="Screenshot 2569-08-13 at 10 16 27" src="https://github.com/user-attachments/assets/27dda557-5aea-48a4-b85e-a037ef99f48d" />
