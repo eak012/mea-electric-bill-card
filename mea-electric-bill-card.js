@@ -1,5 +1,5 @@
 /* MEA Electric Bill Card (Type 1.2 Progressive with Solar Deduct & History)
- * Version: 2.0.0 (All-in-One: Live Bill & Historical Table from Statistics)
+ * Version: 2.1.0 (Enhanced UI: Clean Icons, Refined Color Scheme & Highlighted Total)
  * Custom Lovelace Card for MEA (Metropolitan Electricity Authority, Thailand)
  */
 
@@ -237,12 +237,10 @@ class MeaElectricBillCard extends HTMLElement {
     const now = new Date();
     const start = getPeriodStart(this._period || "cycle", cfg.cutoff_day, cfg.cutoff_time, now);
 
-    // 1. คำนวณช่วงปัจจุบัน
     const currentUsage = await this._calculatePeriodBill(start, now);
     this._usage = currentUsage;
     this._cycleStart = start;
 
-    // 2. ดึงประวัติรอบบิลย้อนหลังตามจำนวนเดือนที่ระบุ
     const historyMonths = cfg.history_months;
     const historyRows = [];
     const [hours, minutes] = (cfg.cutoff_time || "00:00").split(":").map(Number);
@@ -278,15 +276,35 @@ class MeaElectricBillCard extends HTMLElement {
     const serviceCharge = cfg.service_charge != null ? cfg.service_charge : DEFAULT_RATES.serviceCharge;
     
     const lines = [];
-    lines.push([`Energy charge (${units.toFixed(2)} units)`, energyCharge]);
-    lines.push(["Service charge", serviceCharge]);
+    lines.push({
+      icon: "mdi:lightning-bolt",
+      iconColor: "#ff9800",
+      label: `ค่าพลังงานไฟฟ้า (${units.toFixed(2)} หน่วย)`,
+      val: energyCharge
+    });
+    lines.push({
+      icon: "mdi:wrench-clock",
+      iconColor: "#78909c",
+      label: "ค่าบริการรายเดือน",
+      val: serviceCharge
+    });
 
     const ftCharge = units * ft;
-    lines.push([`Ft (${ft.toFixed(4)} ฿/unit)`, ftCharge]);
+    lines.push({
+      icon: "mdi:chart-timeline-variant",
+      iconColor: "#29b6f6",
+      label: `ค่า Ft (${ft.toFixed(4)} ฿/หน่วย)`,
+      val: ftCharge
+    });
     
     const subtotal = energyCharge + serviceCharge + ftCharge;
     const vatAmount = subtotal * (vat / 100);
-    lines.push([`VAT (${vat}%)`, vatAmount]);
+    lines.push({
+      icon: "mdi:percent",
+      iconColor: "#ab47bc",
+      label: `ภาษีมูลค่าเพิ่ม VAT (${vat}%)`,
+      val: vatAmount
+    });
     const total = subtotal + vatAmount;
 
     return { units, lines, total };
@@ -316,8 +334,17 @@ class MeaElectricBillCard extends HTMLElement {
 
     const rows = bill.lines
       .map(
-        ([label, value]) =>
-          `<tr><td>${label}</td><td class="num">${value.toFixed(2)} ฿</td></tr>`
+        (item) => `
+          <tr>
+            <td>
+              <div class="row-label">
+                <ha-icon icon="${item.icon}" style="color: ${item.iconColor};"></ha-icon>
+                <span>${item.label}</span>
+              </div>
+            </td>
+            <td class="num">${item.val.toFixed(2)} ฿</td>
+          </tr>
+        `
       )
       .join("");
 
@@ -328,136 +355,254 @@ class MeaElectricBillCard extends HTMLElement {
     const now = new Date();
     const currentMonthLabel = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
-    // สร้างแถวตารางประวัติย้อนหลัง
     const historyRowsHtml = (this._historyData || []).map(row => `
       <tr>
         <td><b>${row.label}</b></td>
         <td class="num">${row.totalUnits.toFixed(2)} <small>kWh</small></td>
         <td class="num"><span class="solar-txt">-${row.solarUnits.toFixed(2)}</span> <small>kWh</small></td>
-        <td class="num cost-txt">${row.cost.toFixed(2)} <small>฿</small></td>
+        <td class="num hist-cost">${row.cost.toFixed(2)} <small>฿</small></td>
       </tr>
     `).join('');
 
     this.shadowRoot.innerHTML = `
       <style>
-        ha-card { padding: 16px; font-family: var(--paper-font-body1_-_font-family, inherit); }
-        .header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-        .cycle { font-size: 0.85em; color: var(--secondary-text-color); }
-        table { width: 100%; border-collapse: collapse; font-size: 0.95em; }
-        td { padding: 4px 0; }
-        td.num { text-align: right; }
-        .total-row td { font-weight: bold; border-top: 1px solid var(--divider-color); padding-top: 8px; }
+        ha-card {
+          padding: 16px;
+          font-family: var(--paper-font-body1_-_font-family, inherit);
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          align-items: baseline;
+          margin-bottom: 12px;
+        }
+        .title {
+          font-size: 1.15em;
+          font-weight: 600;
+          color: var(--primary-text-color);
+        }
+        .cycle {
+          font-size: 0.85em;
+          color: var(--secondary-text-color);
+          margin-top: 2px;
+        }
         .scheme-badge {
           font-size: 0.75em;
-          background: var(--primary-color);
+          font-weight: 500;
+          background: var(--primary-color, #0288d1);
           color: var(--text-primary-color, #fff);
-          border-radius: 8px;
-          padding: 2px 8px;
+          border-radius: 6px;
+          padding: 3px 8px;
+          letter-spacing: 0.3px;
         }
-        .tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+        .tabs {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 14px;
+        }
         .tab {
           flex: 1;
           padding: 6px 0;
           border: none;
           border-radius: 6px;
-          background: var(--secondary-background-color, #eee);
-          color: var(--primary-text-color);
+          background: var(--secondary-background-color, rgba(125, 125, 125, 0.12));
+          color: var(--secondary-text-color);
           font-size: 0.85em;
+          font-weight: 500;
           cursor: pointer;
+          transition: all 0.2s ease;
         }
         .tab.active {
-          background: var(--primary-color);
-          color: var(--text-primary-color, #fff);
+          background: var(--primary-color, #0288d1);
+          color: #ffffff;
         }
+
+        /* Summary Box */
         .summary-box {
-          background: var(--secondary-background-color, #f7f7f7);
-          border-radius: 8px;
-          padding: 10px;
-          margin-bottom: 12px;
+          background: var(--secondary-background-color, rgba(125, 125, 125, 0.08));
+          border: 1px solid var(--divider-color, rgba(125, 125, 125, 0.2));
+          border-radius: 10px;
+          padding: 12px 14px;
+          margin-bottom: 14px;
           font-size: 0.9em;
         }
         .summary-row {
           display: flex;
           justify-content: space-between;
-          padding: 2px 0;
+          align-items: center;
+          padding: 4px 0;
+        }
+        .summary-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          color: var(--primary-text-color);
+        }
+        .summary-label ha-icon {
+          --mdc-icon-size: 18px;
         }
         .summary-row.net {
-          font-weight: bold;
-          border-top: 1px dashed var(--divider-color);
-          margin-top: 4px;
-          padding-top: 4px;
-          color: var(--primary-color);
+          font-weight: 600;
+          border-top: 1px dashed var(--divider-color, rgba(125, 125, 125, 0.3));
+          margin-top: 6px;
+          padding-top: 8px;
+          font-size: 0.98em;
         }
-        
-        /* สไตล์ตารางประวัติย้อนหลัง */
+        .net-txt {
+          color: var(--primary-color, #0288d1);
+        }
+
+        /* Breakdown Table */
+        table.bill-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 0.9em;
+        }
+        table.bill-table td {
+          padding: 6px 0;
+        }
+        .row-label {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          color: var(--primary-text-color);
+        }
+        .row-label ha-icon {
+          --mdc-icon-size: 17px;
+        }
+        td.num {
+          text-align: right;
+          color: var(--primary-text-color);
+        }
+
+        /* Total Highlight Row */
+        .total-box {
+          margin-top: 10px;
+          background: linear-gradient(135deg, rgba(var(--rgb-primary-color, 2, 136, 209), 0.12), rgba(var(--rgb-primary-color, 2, 136, 209), 0.04));
+          border: 1px solid rgba(var(--rgb-primary-color, 2, 136, 209), 0.3);
+          border-radius: 8px;
+          padding: 12px 14px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .total-title {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          font-size: 1.0em;
+          color: var(--primary-color, #0288d1);
+        }
+        .total-title ha-icon {
+          --mdc-icon-size: 22px;
+          color: var(--primary-color, #0288d1);
+        }
+        .total-amount {
+          font-size: 1.35em;
+          font-weight: 700;
+          color: var(--primary-color, #0288d1);
+        }
+
+        /* History Table */
         .history-section {
-          margin-top: 16px;
-          border-top: 1px solid var(--divider-color);
+          margin-top: 18px;
+          border-top: 1px solid var(--divider-color, rgba(125, 125, 125, 0.2));
           padding-top: 12px;
         }
         .history-title {
-          font-weight: bold;
-          font-size: 1.0em;
+          font-weight: 600;
+          font-size: 0.95em;
           margin-bottom: 8px;
           display: flex;
           align-items: center;
           gap: 6px;
+          color: var(--primary-text-color);
+        }
+        .history-title ha-icon {
+          --mdc-icon-size: 18px;
+          color: var(--primary-color, #0288d1);
+        }
+        .history-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 0.88em;
         }
         .history-table th, .history-table td {
-          padding: 6px 2px;
-          border-bottom: 1px solid var(--divider-color, #e0e0e0);
+          padding: 6px 4px;
+          border-bottom: 1px solid var(--divider-color, rgba(125, 125, 125, 0.15));
         }
         .history-table th {
           color: var(--secondary-text-color);
           font-weight: 500;
           text-align: left;
-          font-size: 0.85em;
         }
         .history-table th.num { text-align: right; }
         tr.current-row {
-          background-color: var(--secondary-background-color, #f0f4f8);
+          background-color: var(--secondary-background-color, rgba(125, 125, 125, 0.1));
           font-weight: 500;
         }
         .badge-live {
-          font-size: 0.7em;
-          background: var(--primary-color, #03a9f4);
+          font-size: 0.68em;
+          background: var(--primary-color, #0288d1);
           color: #fff;
-          padding: 1px 4px;
-          border-radius: 3px;
+          padding: 1px 5px;
+          border-radius: 4px;
           margin-left: 4px;
+          vertical-align: middle;
         }
-        .solar-txt { color: var(--success-color, #4caf50); }
-        .cost-txt { font-weight: bold; color: var(--primary-color); }
+        .solar-txt { color: #2e7d32; font-weight: 500; }
+        .hist-cost { font-weight: 600; color: var(--primary-color, #0288d1); }
       </style>
+
       <ha-card>
         <div class="header">
           <div>
-            <div>${this._config.name}</div>
+            <div class="title">${this._config.name}</div>
             <div class="cycle">${cycleLabel}</div>
           </div>
-          <span class="scheme-badge">MEA Type 1.2</span>
+          <span class="scheme-badge">MEA 1.2</span>
         </div>
+
         <div class="tabs">${tabs}</div>
 
         <div class="summary-box">
           <div class="summary-row">
-            <span>พลังงานไฟฟ้าที่ใช้ทั้งหมด:</span>
-            <span>${totalU} kWh</span>
+            <span class="summary-label">
+              <ha-icon icon="mdi:transmission-tower" style="color: #ff9800;"></ha-icon>
+              <span>พลังงานไฟฟ้าที่ใช้ทั้งหมด:</span>
+            </span>
+            <span><b>${totalU}</b> <small>kWh</small></span>
           </div>
           <div class="summary-row">
-            <span>พลังงานจาก Solar Cell:</span>
-            <span>-${solarU} kWh</span>
+            <span class="summary-label">
+              <ha-icon icon="mdi:solar-power" style="color: #4caf50;"></ha-icon>
+              <span>พลังงานจาก Solar Cell:</span>
+            </span>
+            <span class="solar-txt">-${solarU} <small>kWh</small></span>
           </div>
           <div class="summary-row net">
-            <span>หน่วยไฟฟ้าคงเหลือคิดเงิน:</span>
-            <span>${netU} kWh</span>
+            <span class="summary-label net-txt">
+              <ha-icon icon="mdi:scale-balance" style="color: var(--primary-color, #0288d1);"></ha-icon>
+              <span>หน่วยไฟฟ้าคงเหลือคิดเงิน:</span>
+            </span>
+            <span class="net-txt"><b>${netU}</b> <small>kWh</small></span>
           </div>
         </div>
 
-        <table>
-          ${rows}
-          <tr class="total-row"><td>Estimated Total</td><td class="num">${bill.total.toFixed(2)} ฿</td></tr>
+        <table class="bill-table">
+          <tbody>
+            ${rows}
+          </tbody>
         </table>
+
+        <div class="total-box">
+          <div class="total-title">
+            <ha-icon icon="mdi:cash-multiple"></ha-icon>
+            <span>ยอดประมาณการรวม (Total)</span>
+          </div>
+          <div class="total-amount">${bill.total.toFixed(2)} <small style="font-size: 0.65em;">฿</small></div>
+        </div>
 
         ${this._config.history_months > 0 ? `
           <div class="history-section">
@@ -479,7 +624,7 @@ class MeaElectricBillCard extends HTMLElement {
                   <td><b>${currentMonthLabel}</b><span class="badge-live">สด</span></td>
                   <td class="num">${totalU} <small>kWh</small></td>
                   <td class="num"><span class="solar-txt">-${solarU}</span> <small>kWh</small></td>
-                  <td class="num cost-txt">${bill.total.toFixed(2)} <small>฿</small></td>
+                  <td class="num hist-cost">${bill.total.toFixed(2)} <small>฿</small></td>
                 </tr>
                 ${historyRowsHtml}
               </tbody>
