@@ -1,5 +1,5 @@
 /* MEA Electric Bill Card (Type 1.2 Progressive with Solar Deduct & History)
- * Version: 2.1.0 (Enhanced UI: Clean Icons, Refined Color Scheme & Highlighted Total)
+ * Version: 2.2.0 (Clean History: Filter Zero Rows & Added Table Header Icons)
  * Custom Lovelace Card for MEA (Metropolitan Electricity Authority, Thailand)
  */
 
@@ -252,12 +252,15 @@ class MeaElectricBillCard extends HTMLElement {
         let prevCycleEnd = new Date(currentCycleStart.getTime());
 
         const histUsage = await this._calculatePeriodBill(prevCycleStart, prevCycleEnd);
-        const monthLabel = `${prevCycleEnd.getFullYear()}-${String(prevCycleEnd.getMonth() + 1).padStart(2, '0')}`;
         
-        historyRows.push({
-          label: monthLabel,
-          ...histUsage
-        });
+        // กรองแถวที่ยอดใช้ไฟและโซลาร์เป็น 0 ออก ไม่นำมาเก็บลงตาราง
+        if (histUsage.totalUnits > 0 || histUsage.solarUnits > 0) {
+          const monthLabel = `${prevCycleEnd.getFullYear()}-${String(prevCycleEnd.getMonth() + 1).padStart(2, '0')}`;
+          historyRows.push({
+            label: monthLabel,
+            ...histUsage
+          });
+        }
 
         currentCycleStart = prevCycleStart;
       }
@@ -538,6 +541,14 @@ class MeaElectricBillCard extends HTMLElement {
           text-align: left;
         }
         .history-table th.num { text-align: right; }
+        .th-wrap {
+          display: inline-flex;
+          align-items: center;
+          gap: 3px;
+        }
+        .th-wrap ha-icon {
+          --mdc-icon-size: 15px;
+        }
         tr.current-row {
           background-color: var(--secondary-background-color, rgba(125, 125, 125, 0.1));
           font-weight: 500;
@@ -599,7 +610,7 @@ class MeaElectricBillCard extends HTMLElement {
         <div class="total-box">
           <div class="total-title">
             <ha-icon icon="mdi:cash-multiple"></ha-icon>
-            <span>ยอดประมาณการรวม (Total)</span>
+            <span>ค่าไฟรวม(Total) </span>
           </div>
           <div class="total-amount">${bill.total.toFixed(2)} <small style="font-size: 0.65em;">฿</small></div>
         </div>
@@ -614,9 +625,24 @@ class MeaElectricBillCard extends HTMLElement {
               <thead>
                 <tr>
                   <th>รอบบิล</th>
-                  <th class="num">ใช้ไฟ</th>
-                  <th class="num">Solar</th>
-                  <th class="num">ค่าไฟ</th>
+                  <th class="num">
+                    <span class="th-wrap">
+                      <ha-icon icon="mdi:transmission-tower" style="color: #ff9800;"></ha-icon>
+                      <span>ใช้ไฟ</span>
+                    </span>
+                  </th>
+                  <th class="num">
+                    <span class="th-wrap">
+                      <ha-icon icon="mdi:solar-power" style="color: #4caf50;"></ha-icon>
+                      <span>Solar</span>
+                    </span>
+                  </th>
+                  <th class="num">
+                    <span class="th-wrap">
+                      <ha-icon icon="mdi:cash-multiple" style="color: var(--primary-color, #0288d1);"></ha-icon>
+                      <span>ค่าไฟ</span>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
