@@ -31,7 +31,8 @@ Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนว
 * **รายการประมาณการค่าไฟ:** แสดงแยกรายละเอียด ค่าพลังงานไฟฟ้า, ค่าบริการรายเดือน, ค่า Ft และ VAT 7%
 * **สถิติค่าไฟฟ้าย้อนหลังตามรอบบิล:** ตารางสรุปหน่วยใช้ไฟ, หน่วยโซลาร์เซลล์ และยอดค่าไฟย้อนหลังแยกรายเดือน
 
-<img width="340" height="398" alt="Screenshot 2569-08-13 at 10 15 42" src="https://github.com/user-attachments/assets/03c4ea7d-fe87-4de8-b871-a52dc668c006" />
+<img width="336" height="629" alt="Screenshot 2569-09-28 at 11 16 52" src="https://github.com/user-attachments/assets/b803d735-90e4-41ab-8cec-f6e96dea503f" />
+
 
 ---
 
@@ -80,7 +81,8 @@ service_charge: 24.62
 ft_baht: 0.1623
 vat: 7
 ```
-<img width="1012" height="637" alt="Screenshot 2569-08-13 at 10 16 27" src="https://github.com/user-attachments/assets/27dda557-5aea-48a4-b85e-a037ef99f48d" />
+<img width="1007" height="729" alt="Screenshot 2569-09-28 at 11 17 06" src="https://github.com/user-attachments/assets/36adc7c2-d097-4b24-b28a-c7c000f7648e" />
+
 
 ### พารามิเตอร์การตั้งค่า (Card Options)
 
