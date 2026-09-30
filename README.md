@@ -70,16 +70,16 @@ Custom Lovelace Card สำหรับ **Home Assistant** ใช้คำนว
 ## ตัวอย่างการตั้งค่าผ่าน YAML
 ```yaml
 type: custom:mea-electric-bill-card
-name: ค่าไฟฟ้า MEA (บ้าน)
+name: MEA Electric Bill (Type 1.2)
 cutoff_day: 24
-cutoff_time: "09:00"
+cutoff_time: '09:00'
+ft_baht: 0.1623
+service_charge: 24.62
+vat: 7
 default_period: cycle
 history_months: 3
-entity_total: sensor.grid_energy_total
-entity_solar: sensor.solar_energy_total
-service_charge: 24.62
-ft_baht: 0.1623
-vat: 7
+entity_total: sensor.main_energy
+entity_solar: sensor.solar_meter_energy_total
 ```
 <img width="1007" height="729" alt="Screenshot 2569-09-28 at 11 17 06" src="https://github.com/user-attachments/assets/36adc7c2-d097-4b24-b28a-c7c000f7648e" />
 
