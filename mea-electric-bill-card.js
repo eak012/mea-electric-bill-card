@@ -1,5 +1,5 @@
 /* MEA Electric Bill Card (Type 1.2 Progressive with Solar Deduct & History)
- * Version: 2.2.0 (Clean History: Filter Zero Rows & Added Table Header Icons)
+ * Version: 2.2.1 (Minimalist Theme-Adaptive UI)
  * Custom Lovelace Card for MEA (Metropolitan Electricity Authority, Thailand)
  */
 
@@ -146,7 +146,7 @@ class MeaElectricBillCard extends HTMLElement {
   static getStubConfig() {
     return {
       type: "custom:mea-electric-bill-card",
-      name: "MEA Electric Bill (Type 1.2)",
+      name: "MEA Electric Bill",
       cutoff_day: 24,
       cutoff_time: "09:00",
       ft_baht: FT_DEFAULT,
@@ -253,7 +253,6 @@ class MeaElectricBillCard extends HTMLElement {
 
         const histUsage = await this._calculatePeriodBill(prevCycleStart, prevCycleEnd);
         
-        // กรองแถวที่ยอดใช้ไฟและโซลาร์เป็น 0 ออก ไม่นำมาเก็บลงตาราง
         if (histUsage.totalUnits > 0 || histUsage.solarUnits > 0) {
           const monthLabel = `${prevCycleEnd.getFullYear()}-${String(prevCycleEnd.getMonth() + 1).padStart(2, '0')}`;
           historyRows.push({
@@ -279,15 +278,16 @@ class MeaElectricBillCard extends HTMLElement {
     const serviceCharge = cfg.service_charge != null ? cfg.service_charge : DEFAULT_RATES.serviceCharge;
     
     const lines = [];
+    // เปลี่ยนสี Icon ทั้งหมดให้ใช้ var(--secondary-text-color) เพื่อความมินิมอล
     lines.push({
       icon: "mdi:lightning-bolt",
-      iconColor: "#ff9800",
+      iconColor: "var(--secondary-text-color)",
       label: `ค่าพลังงานไฟฟ้า (${units.toFixed(2)} หน่วย)`,
       val: energyCharge
     });
     lines.push({
       icon: "mdi:wrench-clock",
-      iconColor: "#78909c",
+      iconColor: "var(--secondary-text-color)",
       label: "ค่าบริการรายเดือน",
       val: serviceCharge
     });
@@ -295,7 +295,7 @@ class MeaElectricBillCard extends HTMLElement {
     const ftCharge = units * ft;
     lines.push({
       icon: "mdi:chart-timeline-variant",
-      iconColor: "#29b6f6",
+      iconColor: "var(--secondary-text-color)",
       label: `ค่า Ft (${ft.toFixed(4)} ฿/หน่วย)`,
       val: ftCharge
     });
@@ -304,7 +304,7 @@ class MeaElectricBillCard extends HTMLElement {
     const vatAmount = subtotal * (vat / 100);
     lines.push({
       icon: "mdi:percent",
-      iconColor: "#ab47bc",
+      iconColor: "var(--secondary-text-color)",
       label: `ภาษีมูลค่าเพิ่ม VAT (${vat}%)`,
       val: vatAmount
     });
@@ -392,8 +392,10 @@ class MeaElectricBillCard extends HTMLElement {
         .scheme-badge {
           font-size: 0.75em;
           font-weight: 500;
-          background: var(--primary-color, #0288d1);
-          color: var(--text-primary-color, #fff);
+          /* เปลี่ยนให้เป็นสไตล์ Minimal ไร้พื้นหลังทึบ */
+          background: transparent;
+          color: var(--secondary-text-color);
+          border: 1px solid var(--divider-color, rgba(125, 125, 125, 0.3));
           border-radius: 6px;
           padding: 3px 8px;
           letter-spacing: 0.3px;
@@ -420,7 +422,6 @@ class MeaElectricBillCard extends HTMLElement {
           color: #ffffff;
         }
 
-        /* Summary Box */
         .summary-box {
           background: var(--secondary-background-color, rgba(125, 125, 125, 0.08));
           border: 1px solid var(--divider-color, rgba(125, 125, 125, 0.2));
@@ -451,11 +452,11 @@ class MeaElectricBillCard extends HTMLElement {
           padding-top: 8px;
           font-size: 0.98em;
         }
+        /* ใช้สี Primary เฉพาะจุดที่ต้องเน้นจริงๆ */
         .net-txt {
-          color: var(--primary-color, #0288d1);
+          color: var(--primary-text-color);
         }
 
-        /* Breakdown Table */
         table.bill-table {
           width: 100%;
           border-collapse: collapse;
@@ -478,11 +479,11 @@ class MeaElectricBillCard extends HTMLElement {
           color: var(--primary-text-color);
         }
 
-        /* Total Highlight Row */
         .total-box {
           margin-top: 10px;
-          background: linear-gradient(135deg, rgba(var(--rgb-primary-color, 2, 136, 209), 0.12), rgba(var(--rgb-primary-color, 2, 136, 209), 0.04));
-          border: 1px solid rgba(var(--rgb-primary-color, 2, 136, 209), 0.3);
+          /* เปลี่ยนจาก Gradient ฟ้า เป็นสีพื้นโปร่งแสงดูสะอาดตา */
+          background: var(--secondary-background-color, rgba(125, 125, 125, 0.08));
+          border: 1px solid var(--divider-color, rgba(125, 125, 125, 0.2));
           border-radius: 8px;
           padding: 12px 14px;
           display: flex;
@@ -495,19 +496,18 @@ class MeaElectricBillCard extends HTMLElement {
           gap: 8px;
           font-weight: 600;
           font-size: 1.0em;
-          color: var(--primary-color, #0288d1);
+          color: var(--primary-text-color);
         }
         .total-title ha-icon {
           --mdc-icon-size: 22px;
-          color: var(--primary-color, #0288d1);
+          color: var(--secondary-text-color);
         }
         .total-amount {
           font-size: 1.35em;
           font-weight: 700;
-          color: var(--primary-color, #0288d1);
+          color: var(--primary-text-color);
         }
 
-        /* History Table */
         .history-section {
           margin-top: 18px;
           border-top: 1px solid var(--divider-color, rgba(125, 125, 125, 0.2));
@@ -524,7 +524,7 @@ class MeaElectricBillCard extends HTMLElement {
         }
         .history-title ha-icon {
           --mdc-icon-size: 18px;
-          color: var(--primary-color, #0288d1);
+          color: var(--secondary-text-color);
         }
         .history-table {
           width: 100%;
@@ -555,15 +555,16 @@ class MeaElectricBillCard extends HTMLElement {
         }
         .badge-live {
           font-size: 0.68em;
-          background: var(--primary-color, #0288d1);
-          color: #fff;
+          background: var(--secondary-text-color);
+          color: var(--card-background-color, #fff);
           padding: 1px 5px;
           border-radius: 4px;
           margin-left: 4px;
           vertical-align: middle;
         }
-        .solar-txt { color: #2e7d32; font-weight: 500; }
-        .hist-cost { font-weight: 600; color: var(--primary-color, #0288d1); }
+        /* เอาสีเขียว/ฟ้าออก ให้เน้นด้วยความบาง/หนาแทน */
+        .solar-txt { color: var(--secondary-text-color); font-weight: 400; }
+        .hist-cost { font-weight: 600; color: var(--primary-text-color); }
       </style>
 
       <ha-card>
@@ -580,21 +581,21 @@ class MeaElectricBillCard extends HTMLElement {
         <div class="summary-box">
           <div class="summary-row">
             <span class="summary-label">
-              <ha-icon icon="mdi:transmission-tower" style="color: #ff9800;"></ha-icon>
+              <ha-icon icon="mdi:transmission-tower" style="color: var(--secondary-text-color);"></ha-icon>
               <span>พลังงานไฟฟ้าที่ใช้ทั้งหมด:</span>
             </span>
             <span><b>${totalU}</b> <small>kWh</small></span>
           </div>
           <div class="summary-row">
             <span class="summary-label">
-              <ha-icon icon="mdi:solar-power" style="color: #4caf50;"></ha-icon>
+              <ha-icon icon="mdi:solar-power" style="color: var(--secondary-text-color);"></ha-icon>
               <span>พลังงานจาก Solar Cell:</span>
             </span>
             <span class="solar-txt">-${solarU} <small>kWh</small></span>
           </div>
           <div class="summary-row net">
             <span class="summary-label net-txt">
-              <ha-icon icon="mdi:scale-balance" style="color: var(--primary-color, #0288d1);"></ha-icon>
+              <ha-icon icon="mdi:scale-balance" style="color: var(--secondary-text-color);"></ha-icon>
               <span>หน่วยไฟฟ้าคงเหลือคิดเงิน:</span>
             </span>
             <span class="net-txt"><b>${netU}</b> <small>kWh</small></span>
@@ -627,19 +628,19 @@ class MeaElectricBillCard extends HTMLElement {
                   <th>รอบบิล</th>
                   <th class="num">
                     <span class="th-wrap">
-                      <ha-icon icon="mdi:transmission-tower" style="color: #ff9800;"></ha-icon>
+                      <ha-icon icon="mdi:transmission-tower" style="color: var(--secondary-text-color);"></ha-icon>
                       <span>ใช้ไฟ</span>
                     </span>
                   </th>
                   <th class="num">
                     <span class="th-wrap">
-                      <ha-icon icon="mdi:solar-power" style="color: #4caf50;"></ha-icon>
+                      <ha-icon icon="mdi:solar-power" style="color: var(--secondary-text-color);"></ha-icon>
                       <span>Solar</span>
                     </span>
                   </th>
                   <th class="num">
                     <span class="th-wrap">
-                      <ha-icon icon="mdi:cash-multiple" style="color: var(--primary-color, #0288d1);"></ha-icon>
+                      <ha-icon icon="mdi:cash-multiple" style="color: var(--secondary-text-color);"></ha-icon>
                       <span>ค่าไฟ</span>
                     </span>
                   </th>
@@ -666,6 +667,7 @@ class MeaElectricBillCard extends HTMLElement {
   }
 }
 
+// ... ส่วน MeaElectricBillCardEditor คงไว้เหมือนเดิมไม่เปลี่ยนแปลง ...
 class MeaElectricBillCardEditor extends HTMLElement {
   setConfig(config) {
     this._config = { ...MeaElectricBillCard.getStubConfig(), ...config };
