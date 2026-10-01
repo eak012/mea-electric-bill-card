@@ -6,7 +6,7 @@
 const DEFAULT_RATES = {
   serviceCharge: 24.62,
   tiers: [
-    { upTo: 150, rate: 3.2484 },
+    { upTo: 150, rate: 3.0000 },
     { upTo: 400, rate: 4.2218 },
     { upTo: Infinity, rate: 4.4217 },
   ],
