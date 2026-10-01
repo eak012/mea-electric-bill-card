@@ -13,7 +13,7 @@ const DEFAULT_RATES = {
 };
 
 const VAT_DEFAULT = 7;
-const FT_DEFAULT = 0.3972;
+const FT_DEFAULT = 0.1632;
 
 function tieredEnergyCharge(units, tiers) {
   let remaining = Math.max(0, units);
